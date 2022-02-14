@@ -98,23 +98,24 @@ class Check:
         # return the amounts present in the content
         result = set() 
         # find with digit and decimal
-        for i in re.finditer(r"\d{1,3}(?:,\d{3})*(?:\.\d+)+", content):
+        for i in re.finditer(r"\d{1,3}(?:,\d{3})*(?:\.\d+)", content):
             # print(i)
             result.add(i.group())
         #find with S digit and deciaml
         # for i in re.finditer(r"(\b[S][0-9]*\.[0-9]*)|\b[S][0-9]+", content):
         #     print(i.group())
         #     result.add(i.group()[1:])
-        for i in re.finditer(r"\b[S]\d{1,3}(?:,\d{3})*(?:\.\d+)+|\b[S]\d{1,3}(?:,\d{3})*", content):
+        for i in re.finditer(r"\b[S]\d{1,3}(?:,\d{3})*(?:\.\d+)|\b[S]\d{1,3}(?:,\d{3})*", content):
             # print(i.group())
             result.add(i.group()[1:])
         # find with $ digit and decimal
         # for i in re.finditer(r"\$\d+(?:\.\d+)?", content):
         #     print(i.group())
         #     result.add(i.group()[1:])
-        for i in re.finditer(r"\$\d{1,3}(?:,\d{3})*(?:\.\d+)+|\$\d{1,3}(?:,\d{3})*", content):
+        for i in re.finditer(r"\$\d{1,3}(?:,\d{3})*(?:\.\d+)|\$\d{1,3}(?:,\d{3})*", content):
             # print(i.group())
             result.add(i.group()[1:])
+            print(result)
         # print(result)
         return result
     
@@ -166,9 +167,12 @@ class Check:
         address_list=[]
         zipcodes_list=[]
         search = SearchEngine()
+        check_signed_dates = re.findall("\d{1,2}/\d{1,2}/\d{4}|\d{1,2}-\d{1,2}-\d{4}", content)
         door_number_search = re.findall("\d+-+\d+/+\d*.\s[a-z]*", content)
         po_box_search=re.findall("[pP.]+[oO.]+.?[BboOxX]*.\d*",content)
         adresses=pyap.parse(content, country='US')
+        print("door Numbers",door_number_search)
+        print("Addresses are",adresses)
         for i in re.finditer(r'(?!\A)\b\d{5}(?:-\d{4})?\b', content):
                 if zipcodes.is_real(i.group()):
                     zipcodes_list.append(i.group())
@@ -198,11 +202,12 @@ class Check:
                                 for o in po_box_search:
                                     if(o in street):
                                         po_box_search.remove(o)
+                               
                                 for k in door_number_search:
                                     if(k in street):
                                         door_number_search.remove(k)
-                                    if(street!="" and content.lower().index(street)-50>=0 and (k in content[content.lower().index(street)-50:content.lower().index(street)])):
-                                        street=content[content.index(k):content.lower().index(street)].lower()+street
+                                    if(street!="" and street in content.lower() and (k in content.lower()) and  content.lower().index(k)>=0 and (content.lower().index(street)-50>=0) and (k in content[content.lower().index(street)-50:content.lower().index(street)])):
+                                        street=content[content.lower().index(k):content.lower().index(street)].lower()+street
                                         door_number_search.remove(k)
             if(pincode!=""):
                 address_list.append([street,city,state,pincode])
@@ -276,6 +281,9 @@ class Check:
         
 
     def data_assign_rowby(self, photo_id, date, bank, whole_address_list, amount, writer):
+        list_to_set=[tuple(lst) for lst in whole_address_list]
+        whole_address_list=list(set(list_to_set))
+        whole_address_list=[list(lst) for lst in whole_address_list]
         num_banks = len(bank)
         num_address_whole=len(whole_address_list)
         num_amount = len(amount)
