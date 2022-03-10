@@ -16,6 +16,12 @@ from uszipcode import SearchEngine
 import pyap
 from commonregex import CommonRegex
 import pandas as pd
+from geopy.geocoders import Nominatim
+from geopy.extra.rate_limiter import RateLimiter
+
+# 1 - conveneint function to delay between geocoding calls
+geolocator = Nominatim(user_agent="likhith_hello")
+#geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
 
 class Check:
 
@@ -165,6 +171,8 @@ class Check:
         return result'''
     ###Method to Parse street
     def check_street(self,content):
+        
+        b_suffix={"llc.","inc.","corp.","inc ","llc ","services","service","ltd.","ltd ","corp "}
         address_list=[]
         zipcodes_list=[]
         search = SearchEngine()
@@ -212,6 +220,40 @@ class Check:
                                         door_number_search.remove(k)
             if(pincode!=""):
                 if(street.lower() in content.lower() and content.lower().index(street.lower())>10 and  ("Order of" not in  content[content.lower().index(street.lower())-10:content.lower().index(street.lower())] or "Order of" not in street)):
+                    #bname=re.findall(r"\b[A-Z0-9](?:\w|-)*\s+(?:(?:\w|-)+\s+)*(?:[Ii]nc?|[Ll]td|[Ss]ons)(?:\.|\b)?", street.lower())
+                    #bname=list(set(street.lower().split()) & b_suffix)
+                    for ij in b_suffix:
+                                if(ij in street.lower()):
+                                    bindex=street.lower().index(ij)
+                                    street=street[bindex+len(ij):]
+                    '''if(len(bname)>0 and (bname[0] in street.lower())):
+                        bindex=street.lower().index(bname[0])
+                        street=street[bindex:]'''
+                    street=street.lower().replace("payroll account","")  
+                    print("$$$$$$$$$$$$$$$$$$$$$$$@@@@@@@@@@@@@@@@@@@",street+city+state+pincode)
+                    not_loc_street=street
+                    concat_addr=""
+                    if(len(street.split())>1 and street.split()[0].isdigit() and street.split()[1].isdigit()):
+                        l=street.split()
+                        street=" ".join(map(str,l[1:]))
+                    if(street!=""):
+                       concat_addr=street 
+                    elif(city!=""):
+                        concat_addr=concat_addr+","+city
+                    elif(state!=""):
+                        concat_addr=concat_addr+","+state
+                    elif(pincode!=""):
+                         concat_addr=concat_addr+","+pincode
+                    concat_addr=concat_addr+","+"United States"
+                    street=geolocator.geocode(concat_addr,timeout=10)
+                   
+                    if(street):
+                        
+                        street=street.address
+                        if(len(street.split(","))<=0 or street.split(",")[-1]!=" United States" or (city.lower() not in street.lower())):
+                            street=not_loc_street
+                    else:
+                        street=not_loc_street
                     address_list.append([street,city,state,pincode])
                 print("zipcode being removed is",pincode)
                 if(pincode in zipcodes_list):
@@ -244,12 +286,45 @@ class Check:
                             print("Addresses are: ",content[content.index(k):content.index(state_find)].replace(city_find, ''))
                             address_find=content[content.index(k):content.index(state_find)].title().replace(city_find.title(), '')
                             if(address_find.lower() in content.lower() and content.lower().index(address_find.lower())>10 and  ("Order of" not in  content[content.lower().index(address_find.lower())-10:content.lower().index(address_find.lower())] or "Order of" not in address_find)):
+                                #bname=re.findall(r"\b[A-Z0-9](?:\w|-)*\s+(?:(?:\w|-)+\s+)*(?:[Ii]nc?|[Ll]td|[Ss]ons)(?:\.|\b)?", address_find)
+                                #bname=list(set(address_find.lower().split()) & b_suffix)
+                                for ij in b_suffix:
+                                    if(ij in address_find.lower()):
+                                        bindex=address_find.lower().index(ij)
+                                        address_find=address_find[bindex+len(ij):]
+                                '''if(len(bname)>0 and (bname[0] in address_find.lower())):
+                                    bindex=address_find.lower().index(bname[0])
+                                    address_find=address_find[bindex:]'''
+                                address_find=address_find.lower().replace("payroll account","") 
+                                print("$$$$$$$$$$$$$$$$$$$$$$$@@@@@@@@@@@@@@@@@@@",address_find+city_find+state_find+i)
+                                not_loc_street=address_find
+                                concat_addr=""
+                                if(len(address_find.split())>1 and address_find.split()[0].isdigit() and address_find.split()[1].isdigit()):
+                                    l=address_find.split()
+                                    address_find=" ".join(map(str,l[1:]))
+                                if(address_find!=""):
+                                    concat_addr=address_find
+                                elif(city_find!=""):
+                                    concat_addr=concat_addr+","+city_find
+                                elif(state_find!=""):
+                                    concat_addr=concat_addr+","+state_find
+                                elif(i!=""):
+                                    concat_addr=concat_addr+","+i
+                                concat_addr=concat_addr+","+"United States"
+                                address_find=geolocator.geocode(concat_addr,timeout=10)
+                                
+                                if(address_find):
+                                    address_find=address_find.address
+                                    if(len(address_find.split(","))<=0 or address_find.split(",")[-1]!=" United States" or (city_find.lower() not in address_find.lower())):
+                                        address_find=not_loc_street
+                                else:
+                                    address_find=not_loc_street
                                 address_list.append([address_find,city_find,state_find,i])
                     for o in po_box_search:
-                        if(o in address_find):
+                        if(address_find and (o in address_find)):
                             po_box_search.remove(o)
                     for k in door_number_search:
-                        if(k in address_find):
+                        if(address_find and (k in address_find)):
                             door_number_search.remove(k)   
                 
                 for nn in door_number_search:
@@ -257,18 +332,84 @@ class Check:
                         address_Drnum_find=content[content.index(nn):content.index(i)].title().replace(state_find.title(), '').replace(city_find.title(), '').replace(',', '')
                         door_number_search.remove(nn) 
                         if(address_Drnum_find.lower() in content.lower() and content.lower().index(address_Drnum_find.lower())>10 and  ("Order of" not in  content[content.lower().index(address_Drnum_find.lower())-10:content.lower().index(address_Drnum_find.lower())] or "Order of" not in address_Drnum_find)):
+                            bname=list(set(address_Drnum_find.lower().split()) & b_suffix)
+                            for ij in b_suffix:
+                                    if(ij in address_Drnum_find.lower()):
+                                        bindex=address_Drnum_find.lower().index(ij)
+                                        address_Drnum_find=address_Drnum_find[bindex+len(ij):]
+                            #bname=re.findall(r"\b[A-Z0-9](?:\w|-)*\s+(?:(?:\w|-)+\s+)*(?:[Ii]nc?|[Ll]td|[Ss]ons)(?:\.|\b)?", address_Drnum_find)
+                           
+                            address_Drnum_find=address_Drnum_find.lower().replace("payroll account","")
+                            print("$$$$$$$$$$$$$$$$$$$$$$$@@@@@@@@@@@@@@@@@@@",address_Drnum_find+","+city_find+","+state_find+i)
+                            not_loc_street=address_Drnum_find
+                            concat_addr=""
+                            if(len(address_Drnum_find.split())>1 and address_Drnum_find.split()[0].isdigit() and address_Drnum_find.split()[1].isdigit()):
+                                l=address_Drnum_find.split()
+                                address_Drnum_find=" ".join(map(str,l[1:]))
+                            if(address_Drnum_find!=""):
+                                concat_addr=address_Drnum_find
+                            elif(city_find!=""):
+                                concat_addr=concat_addr+","+city_find
+                            elif(state_find!=""):
+                                concat_addr=concat_addr+","+state_find
+                            elif(i!=""):
+                                concat_addr=concat_addr+","+i
+                            concat_addr=concat_addr+","+"United States"
+                            address_Drnum_find=geolocator.geocode(concat_addr,timeout=10)
+                            
+                            if(address_Drnum_find):
+                                address_Drnum_find=address_Drnum_find.address
+                                if(len( address_Drnum_find.split(","))<=0 or  address_Drnum_find.split(",")[-1]!=" United States" or (city_find.lower() not in address_Drnum_find.lower())):
+                                         address_Drnum_find=not_loc_street
+                            else:
+                                address_Drnum_find=not_loc_street
+                                
                             address_list.append([address_Drnum_find,city_find,state_find,i])
                 for pp in  po_box_search:
                     if(content.index(i)-100>=0 and pp in content[content.index(i)-100:content.index(i)]): 
                         address_pb_find=content[content.index(pp):content.index(i)].title().replace(state_find.title(), '').replace(city_find.title(), '').replace(',', '')
                         po_box_search.remove(pp) 
                         if(address_pb_find.lower() in content.lower() and content.lower().index(address_pb_find.lower())>10 and  ("Order of" not in  content[content.lower().index(address_pb_find.lower())-10:content.lower().index(address_pb_find.lower())] or "Order of" not in address_pb_find)):
+                            bname=list(set(address_pb_find.lower().split()) & b_suffix)
+                            print(bname)
+                            for ij in b_suffix:
+                                if(ij in address_pb_find.lower()):
+                                    bindex=address_pb_find.lower().index(ij)
+                                    address_pb_find=address_pb_find[bindex+len(ij):]
+                            #bname=re.findall(r"\b[A-Z0-9](?:\w|-)*\s+(?:(?:\w|-)+\s+)*(?:[Ii]nc?|[Ll]td|[Ss]ons)(?:\.|\b)?", address_pb_find)
+                            '''if(len(bname)>0 and (bname[0] in address_pb_find.lower())):
+                                    bindex=address_pb_find.lower().index(bname[0])
+                                    address_pb_find=address_pb_find[bindex:]'''
+                            address_pb_find=address_pb_find.lower().replace("payroll account","") 
+                            print("$$$$$$$$$$$$$$$$$$$$$$$@@@@@@@@@@@@@@@@@@@",address_pb_find+city_find+state_find+i)
+                            not_loc_street=address_pb_find
+                            concat_addr=""
+                            if(len(address_pb_find.split())>1 and address_pb_find.split()[0].isdigit() and address_pb_find.split()[1].isdigit()):
+                                l=address_pb_find.split()
+                                address_pb_find=" ".join(map(str,l[1:]))
+                            if(address_pb_find!=""):
+                                concat_addr=address_pb_find
+                            elif(city_find!=""):
+                                concat_addr=concat_addr+","+city_find
+                            elif(state_find!=""):
+                                concat_addr=concat_addr+","+state_find
+                            elif(i!=""):
+                                concat_addr=concat_addr+","+i
+                            concat_addr=concat_addr+","+"United States"
+                            address_pb_find=geolocator.geocode(concat_addr,timeout=10)
+                            
+                            if(address_pb_find):
+                                address_pb_find=address_pb_find.address
+                                if(len(address_pb_find.split(","))<=0 or address_pb_find.split(",")[-1]!=" United States" or (city_find.lower() not in address_pb_find.lower())):
+                                         address_pb_find=not_loc_street
+                            else:
+                                address_pb_find=not_loc_street
                             address_list.append([address_pb_find,city_find,state_find,i])
                         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
                         
                 zipcodes_list.remove(i)
                     
-                    
+                
                         
     
         print("Searched post boxes",po_box_search)
@@ -408,4 +549,10 @@ if __name__ == '__main__':
         deduped.reset_index()
         deduped.to_csv('checks_december_data.csv',index=False)
         
+        #Locating address:
+        '''df = pd.read_csv("checks_december_data.csv")    
+        cols = ['Address', 'City', 'State']
+        df['Main_address'] = df[cols].apply(lambda row: ','.join(row.values.astype(str)), axis=1)
+        df['Address'] = df['Main_address'].apply(geocode,timeout=100000) 
+        df.to_csv('checks_december_data.csv',index=False)'''
         
