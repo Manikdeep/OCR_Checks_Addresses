@@ -5,8 +5,8 @@ Created on Fri May 20 14:15:25 2022
 
 @author: sailikhithchilukurthi
 """
-
-API_KEY="AIzaSyDeK7WMVl3E9SShxDRAvT282rUpp4o1D_k"
+#Please replace your API KEY HERE
+API_KEY="YOUR_API_KEY"
 import requests
 import json
 payload={}
